@@ -6,7 +6,7 @@
 2. [Getting started with MLflow](#2-getting-started-with-mlflow).
 3. [Experiment tracking with MLflow](#3-experiment-tracking-with-mlflow).
 4. [Model management](#4-model-management).
-5. []().
+5. [Model registry](#5-model-registry).
 6. []().
 7. []().
 
@@ -331,4 +331,155 @@ In the MLflow web UI we can see all of the logged data, including a `requirement
 ## 4. Model management
 
 [Video source](https://www.youtube.com/watch?v=OVUPIX88q88).
+
+
+As we can see in the image below ([source](https://neptune.ai/blog/ml-experiment-tracking)), **model management** is a subset of MLOps which encompasses experiment tracking, model versioning and deployment, as well as hardware scaling. 
+
+![ml lifecycle](../images/ml_lifecycle.png)
+
+
+Once we have a model defined from experiment tracking stage, we start thinking about saving this model in some place, as well as some kind of versioning that we may like to do before deploying it into production. In this section we see how to manage and deploy our models using MLflow.
+
+
+We can think of folder systems as a very basic way of managing our model versions. However, this solution shows several problems, similarly to spreadsheets for experiment tracking:
+* Error prone: manual task.
+* No versioning.
+* No model lineage: it's not easy to understand how all of our models were created, what hyperparameters were used, etc.
+
+In order to solve these issues, we can use MLflow for managing our models.
+
+
+### Model management with MLflow
+
+As in the previous sections, we make use of the [`trip_duration_prediction_mlflow.ipynb`](./trip_duration_prediction_mlflow.ipynb) notebook.
+
+Here we see two ways to log models in MLflow:
+* As an artifact.
+* Using `log_model` method.
+
+
+**Log model as an artifact**  
+
+Tracking an artifact is just like tracking any other element in MLflow, such as parameters or metrics. The simplest way of model management is simply to track the model as an artifact. Below we add a line for tracking our model at the end of the scikit-learn code we have previously seen.
+
+```python
+with mlflow.start_run():
+    
+    mlflow.set_tag("developer", "sergiogrz")
+    
+    mlflow.log_param("train_data_file", "green_tripdata_2021-01.parquet")
+    mlflow.log_param("valid_data_file", "green_tripdata_2021-02.parquet")
+    
+    alpha = 0.6
+    mlflow.log_param("alpha", alpha)
+    
+    lr = Lasso(alpha)
+    lr.fit(X_train, y_train)
+    
+    y_pred = lr.predict(X_val)
+    
+    rmse = mean_squared_error(y_val, y_pred, squared=False)
+    mlflow.log_metric("rmse", rmse)
+    
+    # track model
+    mlflow.log_artifact(local_path="./models/lin_reg.bin", artifact_path="models_pickle")
+```
+
+`mlflow.log_artifact()` logs a local file or directory as an artifact.
+  * `local_path`: path to the file to write.
+  * `artifact_path`:  directory in `artifact_uri` to write to.
+  * The model (in this example `models/lin_reg.bin`) must exist locally beforehand in order to be able to log it as an artifact. As we have previously seen, we can save a model as follows:
+
+      ```python
+      with open("./models/lin_reg.bin", "wb") as f_out:
+          pickle.dump((dv, lr), f_out)
+      ```
+
+
+The model created as an artifact can then be found and downloaded from the MLflow UI.
+
+
+
+**Log model using `log_model` method**  
+
+The limitation with artifact tracking for model management is that it's cumbersome to search for a specific model, download the bin file and create the code to load it and run predictions.
+
+A better way for logging models is by using `log_model` method.
+
+```python
+# for this example, we turn off autologging
+mlflow.xgboost.autolog(disable=True)
+
+with mlflow.start_run():
+    
+    train = xgb.DMatrix(X_train, label=y_train)
+    valid = xgb.DMatrix(X_val, label=y_val)
+
+    best_params = {
+        "learning_rate": 0.1126860623846719,
+        "max_depth": 11,
+        "min_child_weight": 7.128461099684721,
+        "objective": "reg:linear",
+        "reg_alpha": 0.04429046957254972,
+        "reg_lambda": 0.09902356874800584,
+        "seed": 42,
+    }
+    
+    mlflow.log_params(best_params)
+
+    booster = xgb.train(
+        params=best_params,
+        dtrain=train,
+        num_boost_round=1000,
+        evals=[(valid, 'validation')],
+        early_stopping_rounds=50
+    )
+
+    y_pred = booster.predict(valid)
+
+    rmse = mean_squared_error(y_val, y_pred, squared=False)
+    mlflow.log_metric("rmse", rmse)
+    
+    # log preprocessor
+    with open("./models/preprocessor.b", "wb") as f_out:
+        pickle.dump(dv, f_out)
+    mlflow.log_artifact(local_path="./models/preprocessor.b", artifact_path="preprocessor")
+    
+    # log model
+    mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
+```
+
+MLflow offers model logging for specific frameworks. `mlflow.xgboost.log_model()` takes our model object and stores it in the provided artifact path.
+
+
+It's also relevant to log the DictVectorizer we used to preprocess our dataset, since we will need it for future predictions.
+
+
+### Making predictions
+
+We can make use of the code snippets provided within the artifact we just created for loading the model and making predictions.
+
+MLflow stores the model in a format that allows us to load it in different "flavors". For example, our XGBoost model can be loaded as a PyFuncModel or as an XGBoost model.
+
+```python
+logged_model = 'runs:/.../models_mlflow'
+
+#Load model as a PyFuncModel
+loaded_model = mlflow.pyfunc.load_model(model_uri=logged_model)
+
+#Load model as a XGBoost model
+xgboost_model = mlflow.xgboost.load_model(model_uri=logged_model)
+```
+
+The loaded models are regular objects of their respective framework "flavor". We can then make use of any of their methods.
+
+```python
+y_pred = xgboost_model.predict(valid)
+```
+
+
+
+## 5. Model registry
+
+[Video source](https://www.youtube.com/watch?v=TKHU7HAvGH8).
 
