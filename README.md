@@ -28,11 +28,11 @@ This repository documents my notes and progress in the 2023 edition of the [MLOp
 * Docker.
 * Docker Compose.
 
-Python packages required are listed in [requirements.txt](./requirements.txt).
+Python packages required are listed in [environment.yml](./environment.yml).
 
 ```bash
-# install inside a virtual environment
-pip install -r requirements.txt
+# create virtual env and install dependencies
+conda env create -f environment.yml --force
 ```
 
 See [module 1 - environment preparation](./01_introduction/README.md#2-environment-preparation).

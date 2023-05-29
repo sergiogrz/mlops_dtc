@@ -7,9 +7,7 @@
 3. [Experiment tracking with MLflow](#3-experiment-tracking-with-mlflow).
 4. [Model management](#4-model-management).
 5. [Model registry](#5-model-registry).
-6. []().
-7. []().
-
+6. [MLflow in practice](#6-mlflow-in-practice).
 
 
 > **Sources:**
@@ -93,7 +91,7 @@ Along with this information, MLflow automatically logs extra information about t
 
 ### Installing and running MLflow
 
-MLflow is included in the [requirements.txt](../requirements.txt) file, as well as the other packages needed to complete the course.
+MLflow is included in the [environment.yml](../environment.yml) file, as well as the other packages needed to complete the course.
 
 Once it's installed, we can run `mlflow --help` from our terminal to see the options available in the MLflow CLI.
 
@@ -482,4 +480,95 @@ y_pred = xgboost_model.predict(valid)
 ## 5. Model registry
 
 [Video source](https://www.youtube.com/watch?v=TKHU7HAvGH8).
+
+A [model registry](https://www.phdata.io/blog/what-is-a-model-registry/) is a central repository used to store and version trained machine learning (ML) models.  Model registries greatly simplify the task of tracking models as they move through the ML lifecycle, from training to production deployments and ultimately retirement. With the registry, developers can also work together with other teams and stakeholders, collaboratively manage the lifecycle of all models in the organization. 
+
+In addition to the models themselves, a model registry stores information (metadata) about the data and training jobs used to create the model.  Tracking these requisite inputs is essential to establish lineage for ML models.  In this way, a model registry serves a function analogous to version control systems (e.g. Git, SVN) and artifact repositories (e.g. Artifactory, PyPI) for traditional software.
+
+Another way to think about model lineage is to consider all of the details that would be necessary to recreate a trained model from scratch.  Establishing lineage through a model registry is a vital component of a robust MLOps architecture.
+
+
+### Model registry in MLflow
+
+The [MLflow's Model Registry](https://mlflow.org/docs/latest/model-registry.html) component is a centralized model store, set of APIs, and a UI, to collaboratively manage the full lifecycle of an MLflow Model. It provides:
+* Model lineage.
+* Model versioning.
+* Stage transitions.
+* Annotations.
+
+In the previous sections we made use of MLflow's local tracking server for tracking all of our experiments (parameters, metrics, artifacts, models). MLflow also offers a model registry: a Data Scientist can experiment and develop models using the tracking server to track them, and once he feels the model is ready for deployment, he can register the model in the registry so that the Deployment Engineer can deploy it in production.
+
+![mlflow model registry](../images/mlflow_model_registry.png)
+
+MLflow's Model Registry provides different stages or labels, such as _staging_, _production_ and _archive_. The Deployment Engineer may inspect a newly registered model and assign it to one of these labels as needed.
+
+Keep in mind that the model registry itself doesn't deploy any model, but only lists what are the production-ready models. In order to actually deploy a model you may need to complement the model registry with some CI/CD practices.
+
+
+### Promoting selected models to the model registry
+
+Once we've finished with experimentation, we may want to identify which are the models that are ready to deploy in production, and therefore, to be promoted to the model registry.
+
+> NOTE: a model with the lowest error or highest accuracy may not necessarily be the best model for your needs; there are other parameters such as model size and training/inference time that may affect the final deployment. You (or the Deployment Engineer) should choose according to the needs and goals of the project.
+
+To register a model, follow these steps from the MLflow web UI:
+* Click on Artifacts > Register Model.
+* Model:
+    + Create New Model.
+    + Model Name: choose a name for the model.
+
+If you're promoting multiple models of the same experiment, you may choose the same name for all of them and the registry will track them as different versions.
+
+Our registered models and all their information can be found then on the _Models_ tab. From this page we may also add a description to provide any relevant info as well as tags for each version.
+
+Each model version is linked to its source experiment run, therefore assuring model lineage.
+
+
+**Assigning registered models to stages**  
+By default, any registered model will be assigned to the _None_ stage. From the model version page, we may transition a model version to a different stage with the _Stage_ drop-down menu.
+
+
+
+### Interacting with the tracking and registry server with Python
+
+MLflow library gives us the possibilty to access the tracking server and the model registry and load any promoted models by means of an `MLflowClient` object from the `mlflow.tracking` module.
+
+We use [model_registry.ipynb](./model_registry.ipynb) notebook to see some of the features that MLflow offers in this sense.
+
+
+
+## 6. MLflow in practice
+
+[Video source](https://www.youtube.com/watch?v=1ykg4YmbFVA).
+
+
+### Configuring MLflow
+
+Depending on the context, you may want to configure MLflow using a different setup.
+
+There are 3 main components that you need to configure in MLflow in order to adapt it to your needs:
+
+* **Backend store**: the place where MLflow stores all the metadata about your experiments (metrics, parameters, tasks...).
+  * _Local filesystem_: by default, the metadata will be saved in your local filesystem.
+  * _SQLAlchemy compatible DB_: you may want to set up a DB such as SQLite [like we did before](#installing-and-running-mlflow) for storing the metadata. Using a DB enables us to use the **model registry**.
+* **Artifacts store**: where your models and artifacts are stored.
+  * _Local filesystem_: the default option.
+  * _Remote_: e.g. an S3 bucket.
+* **Tracking server**: you need to decide whether you need to run a tracking server or not.
+  * _No tracking server_: enough for one-man teams for tasks such as competitions.
+  * _Localhost_: good for single data scientists in dev teams that don´t need to share results with other scientists.
+  * _Remote_: better for teamwork and sharing.
+
+Let´s consider 3 different scenarios for running MLflow, and how to configure these 3 components in each scenario:
+* One man team, informal.
+* A cross-functional team with one data scientist working on an ML model.
+* Multiple data scientists working on multiple ML models.
+
+
+### Scenario 1: one man team, informal
+
+An example of this scenario would be a single data scientist participating in an ML competition.
+
+
+
 

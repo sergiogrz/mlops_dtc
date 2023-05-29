@@ -49,7 +49,7 @@ Docker 23.0.6
 Docker Compose 2.12.2
 ```
 
-Python packages required are listed in [requirements.txt](../requirements.txt).
+Python packages required are listed in [environment.yml](../environment.yml).
 
 
 

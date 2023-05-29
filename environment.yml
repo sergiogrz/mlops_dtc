@@ -1,0 +1,13 @@
+name: mlops_dtc
+dependencies:
+  - python=3.9
+  - pandas
+  - pip
+  - pip:
+    - notebook
+    - seaborn
+    - scikit-learn
+    - mlflow
+    - hyperopt
+    - xgboost
+    - pyarrow
